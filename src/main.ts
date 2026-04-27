@@ -21,11 +21,12 @@ import * as path from "path";
 
 const VIEW_TYPE_CODIAN = "codian-view";
 const CODIAN_ICON_ID = "codian-codex";
-const CODIAN_ICON_SVG = `
-<rect x="4" y="4" width="92" height="92" rx="22" fill="none" stroke="currentColor" stroke-width="7"/>
-<path d="M26 60.5A18 18 0 0 1 31 25a22 22 0 0 1 38.5-9.5A19 19 0 0 1 92 39a20 20 0 0 1-9 37.5A22 22 0 0 1 43 86a23 23 0 0 1-31-16.5" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="m35 43 13 13-13 13" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M57 68h22" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>
+const CODIAN_ICON_SOURCE_SIZE = 1254;
+const CODIAN_FALLBACK_ICON_SVG = `
+<rect x="8" y="8" width="84" height="84" rx="18" fill="none" stroke="currentColor" stroke-width="7"/>
+<path d="M28 61a18 18 0 0 1 4-35 22 22 0 0 1 38-9 19 19 0 0 1 22 23 20 20 0 0 1-9 36 22 22 0 0 1-39 9 23 23 0 0 1-31-16" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="m36 43 13 13-13 13" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M58 68h22" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>
 `;
 const PLAN_MODE_INSTRUCTIONS = `PLAN MODE
 You are in planning mode. Do not modify files, do not run destructive commands, and do not apply changes.
@@ -170,7 +171,7 @@ export default class CodianPlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadCodianData();
-    addIcon(CODIAN_ICON_ID, CODIAN_ICON_SVG);
+    addIcon(CODIAN_ICON_ID, this.loadCodianIconSvg());
 
     this.registerView(VIEW_TYPE_CODIAN, (leaf) => new CodianView(leaf, this));
 
@@ -268,6 +269,19 @@ export default class CodianPlugin extends Plugin {
     const leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE_CODIAN)[0];
     if (!leaf) return null;
     return leaf.view instanceof CodianView ? leaf.view : null;
+  }
+
+  loadCodianIconSvg(): string {
+    const vaultPath = this.getVaultPath();
+    const pluginDir = this.manifest.dir && vaultPath ? path.join(vaultPath, this.manifest.dir) : null;
+    if (!pluginDir) return CODIAN_FALLBACK_ICON_SVG;
+
+    try {
+      const iconSvg = fs.readFileSync(path.join(pluginDir, "icon.svg"), "utf8");
+      return normalizeImportedIconSvg(iconSvg);
+    } catch {
+      return CODIAN_FALLBACK_ICON_SVG;
+    }
   }
 
   async loadCodianData(): Promise<void> {
@@ -1927,6 +1941,14 @@ function findCodexCli(): string | null {
 function isAttachableContextFile(file: TFile): boolean {
   if (file.path.startsWith(".obsidian/")) return false;
   return /\.(md|txt|canvas|json|csv|tsv|js|ts|tsx|jsx|css|html|py|toml|yaml|yml)$/i.test(file.path);
+}
+
+function normalizeImportedIconSvg(svg: string): string {
+  const withoutXmlDeclaration = svg.replace(/<\?xml[^>]*>\s*/i, "");
+  const svgMatch = withoutXmlDeclaration.match(/<svg\b[^>]*>([\s\S]*?)<\/svg>/i);
+  const innerSvg = (svgMatch ? svgMatch[1] : withoutXmlDeclaration).trim();
+  const scale = 100 / CODIAN_ICON_SOURCE_SIZE;
+  return `<g transform="scale(${scale})">${innerSvg}</g>`;
 }
 
 function migrateConversations(saved: Partial<CodianData> | null): CodianConversation[] {
