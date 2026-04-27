@@ -22,10 +22,10 @@ import * as path from "path";
 const VIEW_TYPE_CODIAN = "codian-view";
 const CODIAN_ICON_ID = "codian-codex";
 const CODIAN_ICON_SVG = `
-<rect x="2.2" y="2.2" width="19.6" height="19.6" rx="4.6" fill="none" stroke="currentColor" stroke-width="1.7"/>
-<path d="M7.05 14.65A3.55 3.55 0 0 1 7.9 7.6a4.05 4.05 0 0 1 7.05-1.8 3.45 3.45 0 0 1 5.2 3 3.65 3.65 0 0 1-.55 7.25 4.1 4.1 0 0 1-6.85 1.55 4.2 4.2 0 0 1-5.7-2.95Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="m8.55 10.15 1.9 1.85-1.9 1.85" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M13.2 13.8h3.25" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+<rect x="4" y="4" width="92" height="92" rx="22" fill="none" stroke="currentColor" stroke-width="7"/>
+<path d="M26 60.5A18 18 0 0 1 31 25a22 22 0 0 1 38.5-9.5A19 19 0 0 1 92 39a20 20 0 0 1-9 37.5A22 22 0 0 1 43 86a23 23 0 0 1-31-16.5" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="m35 43 13 13-13 13" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M57 68h22" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>
 `;
 const PLAN_MODE_INSTRUCTIONS = `PLAN MODE
 You are in planning mode. Do not modify files, do not run destructive commands, and do not apply changes.
