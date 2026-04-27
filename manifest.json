@@ -1,0 +1,10 @@
+{
+  "id": "codian",
+  "name": "Codian",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.5",
+  "description": "Embeds Codex CLI as an AI coding collaborator inside your Obsidian vault.",
+  "author": "chan",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}

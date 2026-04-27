@@ -1,0 +1,799 @@
+.codian-view {
+  --codian-accent: var(--interactive-accent);
+  --codian-accent-soft: color-mix(in srgb, var(--interactive-accent) 14%, transparent);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.codian-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 54px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+
+.codian-brand {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.codian-brand-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  color: var(--codian-accent);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--codian-accent-soft);
+}
+
+.codian-brand-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.codian-brand-text {
+  min-width: 0;
+}
+
+.codian-brand-name {
+  color: var(--text-normal);
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.codian-brand-subtitle {
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.codian-toolbar-pills {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+
+.codian-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 180px;
+  min-height: 24px;
+  padding: 3px 7px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.codian-pill-label {
+  color: var(--text-faint);
+}
+
+.codian-pill-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.codian-pill.is-ok {
+  border-color: color-mix(in srgb, var(--color-green) 48%, var(--background-modifier-border));
+  color: var(--color-green);
+}
+
+.codian-pill.is-ok .codian-pill-value {
+  color: var(--color-green);
+}
+
+.codian-pill.is-error,
+.codian-status.is-error {
+  color: var(--text-error);
+}
+
+.codian-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.codian-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.codian-icon-button:hover {
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border);
+  background: var(--background-modifier-hover);
+}
+
+.codian-icon-button.is-active {
+  color: var(--codian-accent);
+  border-color: var(--codian-accent);
+  background: var(--codian-accent-soft);
+}
+
+.codian-icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.codian-status {
+  min-height: 28px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codian-tabs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  overflow-x: auto;
+  background: var(--background-primary);
+}
+
+.codian-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 190px;
+  height: 26px;
+  padding: 0 5px 0 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.codian-tab:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.codian-tab.is-active {
+  border-color: var(--codian-accent);
+  color: var(--text-normal);
+  background: var(--codian-accent-soft);
+}
+
+.codian-tab-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.codian-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: var(--background-primary);
+  color: var(--text-faint);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.codian-tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--text-faint);
+  border-radius: 4px;
+}
+
+.codian-tab-close:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.codian-tab-close svg {
+  width: 12px;
+  height: 12px;
+}
+
+.codian-messages {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 14px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.codian-messages::-webkit-scrollbar {
+  width: 6px;
+}
+
+.codian-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.codian-messages::-webkit-scrollbar-thumb {
+  border-radius: 4px;
+  background: var(--background-modifier-border);
+}
+
+.codian-empty {
+  width: min(620px, 100%);
+  margin: auto;
+  padding: 32px 20px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.codian-message {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 10px;
+  width: min(960px, 100%);
+  margin: 0 auto;
+}
+
+.codian-message.is-user {
+  grid-template-columns: minmax(0, 1fr) 30px;
+}
+
+.codian-message.is-user .codian-message-avatar {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.codian-message.is-user .codian-message-content {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: end;
+  max-width: min(720px, 88%);
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px 8px 4px 8px;
+  background: var(--background-secondary);
+}
+
+.codian-message-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-top: 2px;
+  color: var(--text-muted);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-secondary);
+}
+
+.codian-message.is-assistant .codian-message-avatar {
+  color: var(--codian-accent);
+  background: var(--codian-accent-soft);
+}
+
+.codian-message.is-error .codian-message-avatar {
+  color: var(--text-error);
+}
+
+.codian-message-avatar svg {
+  width: 16px;
+  height: 16px;
+}
+
+.codian-message-content {
+  min-width: 0;
+}
+
+.codian-message-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+  margin-bottom: 3px;
+}
+
+.codian-message-role {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.codian-message-time {
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.codian-message.is-user .codian-message-header {
+  justify-content: flex-end;
+}
+
+.codian-message-body {
+  min-width: 0;
+  color: var(--text-normal);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.codian-message-body p {
+  margin: 0 0 8px;
+}
+
+.codian-message-body p:last-child {
+  margin-bottom: 0;
+}
+
+.codian-message-body ul,
+.codian-message-body ol {
+  margin: 8px 0;
+  padding-inline-start: 22px;
+}
+
+.codian-message-body pre {
+  border-radius: 6px;
+}
+
+.codian-message.is-system .codian-message-body,
+.codian-message.is-tool .codian-message-body {
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: 12px;
+}
+
+.codian-message.is-system .codian-message-body {
+  white-space: pre-wrap;
+}
+
+.codian-event-details {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  overflow: hidden;
+}
+
+.codian-event-details summary {
+  padding: 7px 9px;
+  color: var(--text-muted);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codian-event-details pre {
+  margin: 0;
+  padding: 8px 9px;
+  border-top: 1px solid var(--background-modifier-border);
+  border-radius: 0;
+  background: var(--background-primary);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+}
+
+.codian-message.is-tool,
+.codian-message.is-system {
+  opacity: 0.88;
+}
+
+.codian-message.is-error .codian-message-body {
+  color: var(--text-error);
+}
+
+.codian-composer {
+  position: relative;
+  flex: 0 0 auto;
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+
+.codian-composer-shell {
+  position: relative;
+  width: min(960px, 100%);
+  min-height: 118px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  overflow: visible;
+}
+
+.codian-composer-shell:focus-within {
+  border-color: var(--background-modifier-border-hover);
+  box-shadow: 0 0 0 2px var(--codian-accent-soft);
+}
+
+.codian-composer-top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 0;
+  padding: 8px 9px 0;
+}
+
+.codian-context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 22px;
+  max-width: 240px;
+  padding: 3px 7px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.codian-context-chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codian-context-chip.is-plan {
+  color: var(--codian-accent);
+  border-color: var(--codian-accent);
+  background: var(--codian-accent-soft);
+}
+
+.codian-context-chip-removable {
+  padding-inline-end: 4px;
+}
+
+.codian-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: var(--text-faint);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.codian-chip-remove:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.codian-chip-remove svg {
+  width: 12px;
+  height: 12px;
+}
+
+.codian-input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 72px;
+  max-height: 240px;
+  resize: vertical;
+  padding: 8px 10px 4px;
+  color: var(--text-normal);
+  border: none !important;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  vertical-align: top;
+}
+
+.codian-input:hover,
+.codian-input:focus {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.codian-input::placeholder {
+  color: var(--text-muted);
+}
+
+.codian-mention-suggest {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 8px);
+  width: min(960px, calc(100% - 28px));
+  max-height: min(260px, 42vh);
+  overflow-y: auto;
+  z-index: 1000;
+  padding: 4px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.2);
+  transform: translateX(-50%);
+}
+
+.codian-mention-suggest.is-hidden {
+  display: none;
+}
+
+.codian-mention-item {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.codian-mention-item.is-selected,
+.codian-mention-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.codian-mention-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.codian-mention-item.is-file .codian-mention-icon {
+  color: var(--codian-accent);
+}
+
+.codian-mention-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.codian-mention-text {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  min-width: 0;
+  gap: 8px;
+}
+
+.codian-mention-title,
+.codian-mention-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codian-mention-title {
+  color: var(--text-normal);
+  font-size: 13px;
+  font-weight: 500;
+  flex: 0 0 auto;
+}
+
+.codian-mention-path {
+  color: var(--text-muted);
+  font-size: 12px;
+  min-width: 0;
+}
+
+.codian-composer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 32px;
+  padding: 2px 6px 6px 10px;
+}
+
+.codian-composer-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.codian-model-select {
+  height: 30px;
+  max-width: 150px;
+  padding: 0 24px 0 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.codian-effort-select {
+  max-width: 138px;
+}
+
+.codian-run-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 78px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 6px;
+}
+
+.codian-run-button .codian-run-icon {
+  display: inline-flex;
+}
+
+.codian-run-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.codian-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  color: var(--text-faint);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.codian-meta span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codian-setting-warning {
+  margin-top: 16px;
+  color: var(--text-warning);
+  line-height: 1.5;
+}
+
+.codian-inline-modal-input {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+}
+
+.codian-inline-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.codian-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.codian-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+}
+
+.codian-history-main {
+  min-width: 0;
+  cursor: pointer;
+}
+
+.codian-history-title {
+  overflow: hidden;
+  color: var(--text-normal);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codian-history-meta {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .codian-toolbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .codian-toolbar-pills {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .codian-message,
+  .codian-message.is-user {
+    grid-template-columns: 1fr;
+  }
+
+  .codian-message-avatar,
+  .codian-message.is-user .codian-message-avatar {
+    display: none;
+  }
+
+  .codian-message.is-user .codian-message-content {
+    grid-column: 1;
+    max-width: 100%;
+  }
+
+  .codian-composer-toolbar,
+  .codian-meta,
+  .codian-composer-controls {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .codian-model-select,
+  .codian-run-button {
+    width: 100%;
+    max-width: 100%;
+  }
+}
