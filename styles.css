@@ -13,7 +13,7 @@
 .workspace-ribbon .codian-ribbon-icon,
 .workspace-ribbon .codian-ribbon-icon:hover,
 .workspace-ribbon .codian-ribbon-icon:focus {
-  --icon-size: 21px;
+  --icon-size: 24px;
   color: #5C5C5C !important;
   opacity: 1 !important;
 }
@@ -24,13 +24,13 @@
 }
 
 .workspace-ribbon .codian-ribbon-icon svg {
-  width: 21px !important;
-  height: 21px !important;
+  width: 24px !important;
+  height: 24px !important;
 }
 
 .workspace-ribbon .codian-ribbon-icon svg [fill="#5C5C5C"] {
   stroke: #5C5C5C;
-  stroke-width: 28;
+  stroke-width: 22;
   stroke-linejoin: round;
   paint-order: stroke fill;
 }
