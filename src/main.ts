@@ -108,6 +108,15 @@ interface SlashCommandResult {
   localOnly?: boolean;
 }
 
+interface CodianRunState {
+  conversationId: string;
+  assistantMessageId: string;
+  child: ChildProcessWithoutNullStreams | null;
+  pendingLine: string;
+  stderrBuffer: string[];
+  stopped: boolean;
+}
+
 type MentionSuggestion =
   | {
       kind: "folder";
@@ -559,10 +568,7 @@ class CodianView extends ItemView {
   private statusEl: HTMLElement | null = null;
   private inputEl: HTMLTextAreaElement | null = null;
   private runButtonEl: HTMLButtonElement | null = null;
-  private child: ChildProcessWithoutNullStreams | null = null;
-  private activeAssistantMessageId: string | null = null;
-  private pendingLine = "";
-  private stderrBuffer: string[] = [];
+  private runs = new Map<string, CodianRunState>();
   private mentionSuggestEl: HTMLElement | null = null;
   private mentionSuggestions: MentionSuggestion[] = [];
   private selectedMentionIndex = 0;
@@ -594,7 +600,7 @@ class CodianView extends ItemView {
   }
 
   async onClose(): Promise<void> {
-    this.stopCurrentRun();
+    this.stopAllRuns();
     this.hideMentionSuggestions();
     await this.plugin.flushCodianData();
   }
@@ -638,10 +644,6 @@ class CodianView extends ItemView {
 
     const newButton = this.createIconButton(actions, "plus", "New thread");
     newButton.onclick = async () => {
-      if (this.child) {
-        new Notice("Stop the current run before starting a new thread.");
-        return;
-      }
       this.plugin.createConversation();
       await this.plugin.saveCodianData();
       this.render();
@@ -717,6 +719,7 @@ class CodianView extends ItemView {
     });
     setIcon(this.runButtonEl.createSpan({ cls: "codian-run-icon" }), "send");
     this.runButtonEl.onclick = () => void this.sendPrompt();
+    this.refreshActiveRunUi();
   }
 
   private createPill(parent: HTMLElement, label: string, value: string, cls: string): HTMLElement {
@@ -736,10 +739,6 @@ class CodianView extends ItemView {
         attr: { title: conversation.title }
       });
       tab.onclick = async () => {
-        if (this.child) {
-          new Notice("Stop the current run before switching conversations.");
-          return;
-        }
         this.plugin.activateConversation(conversation.id);
         await this.plugin.saveCodianData();
         this.render();
@@ -750,8 +749,8 @@ class CodianView extends ItemView {
       setIcon(close, "x");
       close.onclick = async (event) => {
         event.stopPropagation();
-        if (this.child) {
-          new Notice("Stop the current run before closing a conversation.");
+        if (this.isConversationRunning(conversation.id)) {
+          new Notice("Stop this conversation before closing it.");
           return;
         }
         this.plugin.closeConversation(conversation.id);
@@ -1101,10 +1100,6 @@ class CodianView extends ItemView {
   private async sendPrompt(): Promise<void> {
     const prompt = this.inputEl?.value.trim() ?? "";
     if (!prompt) return;
-    if (this.child) {
-      new Notice("Codex is already running.");
-      return;
-    }
 
     const vaultPath = this.plugin.getVaultPath();
     if (!vaultPath) {
@@ -1119,81 +1114,92 @@ class CodianView extends ItemView {
     }
 
     const conversation = this.plugin.getActiveConversation();
+    if (this.runs.has(conversation.id)) {
+      new Notice("Codex is already running in this conversation.");
+      return;
+    }
+
     const slash = expandSlashCommand(prompt);
     if (slash.localOnly) {
-      this.addMessage("system", slash.prompt);
+      this.addMessage("system", slash.prompt, conversation);
       this.inputEl!.value = "";
       return;
     }
     const turnMode = slash.mode ?? conversation.mode;
-    const codexPrompt = await this.buildPromptWithContext(slash.prompt, turnMode);
+    const codexPrompt = await this.buildPromptWithContext(slash.prompt, turnMode, conversation);
 
     this.inputEl!.value = "";
-    this.addMessage("user", prompt);
+    this.addMessage("user", prompt, conversation);
     this.plugin.updateConversationTitle(conversation, prompt);
-    const assistant = this.addMessage("assistant", "");
-    this.activeAssistantMessageId = assistant.id;
+    const assistant = this.addMessage("assistant", "", conversation);
     this.plugin.touchConversation(conversation);
     await this.plugin.saveCodianData();
 
-    this.setRunning(true);
+    const run: CodianRunState = {
+      conversationId: conversation.id,
+      assistantMessageId: assistant.id,
+      child: null,
+      pendingLine: "",
+      stderrBuffer: [],
+      stopped: false
+    };
+    this.runs.set(conversation.id, run);
+
+    this.refreshActiveRunUi();
     this.setStatus("Starting Codex...");
 
-    const args = this.buildCodexArgs(vaultPath, turnMode);
+    const args = this.buildCodexArgs(vaultPath, turnMode, conversation);
     const env = this.plugin.buildEnvironment(codexPath);
-    this.stderrBuffer = [];
 
     try {
-      this.child = spawn(codexPath, args, {
+      run.child = spawn(codexPath, args, {
         cwd: vaultPath,
         env,
         stdio: "pipe"
       });
     } catch (error) {
-      this.finishWithError(`Failed to start Codex: ${formatError(error)}`);
+      this.runs.delete(conversation.id);
+      this.finishWithError(`Failed to start Codex: ${formatError(error)}`, conversation);
       return;
     }
 
-    this.child.stdin.write(codexPrompt);
-    this.child.stdin.end();
+    run.child.stdin.write(codexPrompt);
+    run.child.stdin.end();
 
-    this.child.stdout.on("data", (chunk: Buffer) => {
-      this.handleStdout(chunk.toString("utf8"));
+    run.child.stdout.on("data", (chunk: Buffer) => {
+      this.handleStdout(run, chunk.toString("utf8"));
     });
 
-    this.child.stderr.on("data", (chunk: Buffer) => {
+    run.child.stderr.on("data", (chunk: Buffer) => {
       const text = chunk.toString("utf8").trim();
       if (text) {
-        this.stderrBuffer.push(text);
+        run.stderrBuffer.push(text);
       }
     });
 
-    this.child.on("error", (error) => {
-      this.finishWithError(formatError(error));
+    run.child.on("error", (error) => {
+      this.finishWithError(formatError(error), conversation);
     });
 
-    this.child.on("close", async (code, signal) => {
-      if (this.pendingLine.trim()) {
-        this.consumeJsonLine(this.pendingLine);
-        this.pendingLine = "";
+    run.child.on("close", async (code, signal) => {
+      if (run.pendingLine.trim()) {
+        this.consumeJsonLine(run, run.pendingLine);
+        run.pendingLine = "";
       }
 
-      const childWasCleared = this.child === null;
-      this.child = null;
-      this.activeAssistantMessageId = null;
-      this.setRunning(false);
-
-      if (childWasCleared || signal) {
-        this.setStatus("Stopped");
+      this.runs.delete(run.conversationId);
+      if (run.stopped || signal) {
+        if (this.isActiveConversation(run.conversationId)) this.setStatus("Stopped");
       } else if (code === 0) {
-        this.flushSuccessfulStderr();
-        this.setStatus(this.buildReadyStatus());
+        this.flushSuccessfulStderr(run);
+        if (this.isActiveConversation(run.conversationId)) this.setStatus(this.buildReadyStatus());
       } else {
-        this.flushFailedStderr();
-        this.addMessage("error", `Codex exited with code ${code ?? "unknown"}.`);
-        this.setStatus(`Codex exited with code ${code ?? "unknown"}`, true);
+        this.flushFailedStderr(run);
+        this.addMessage("error", `Codex exited with code ${code ?? "unknown"}.`, conversation);
+        if (this.isActiveConversation(run.conversationId)) this.setStatus(`Codex exited with code ${code ?? "unknown"}`, true);
       }
 
+      this.refreshActiveRunUi();
       await this.plugin.saveCodianData();
     });
   }
@@ -1215,10 +1221,9 @@ class CodianView extends ItemView {
     });
   }
 
-  private async buildPromptWithContext(prompt: string, mode: ConversationMode): Promise<string> {
+  private async buildPromptWithContext(prompt: string, mode: ConversationMode, conversation: CodianConversation): Promise<string> {
     const contextBlocks: string[] = [];
     const file = this.app.workspace.getActiveFile();
-    const conversation = this.plugin.getActiveConversation();
 
     if (file && this.plugin.data.settings.includeCurrentNoteContext && !conversation.excludedAutoNotePaths.includes(file.path)) {
       try {
@@ -1278,30 +1283,30 @@ USER REQUEST
 ${instruction}`;
   }
 
-  private flushSuccessfulStderr(): void {
-    const warnings = this.stderrBuffer
+  private flushSuccessfulStderr(run: CodianRunState): void {
+    const warnings = run.stderrBuffer
       .map((item) => item.trim())
       .filter(Boolean)
       .filter((item) => !isBenignCodexStderr(item));
-    this.stderrBuffer = [];
+    run.stderrBuffer = [];
 
     if (!this.plugin.data.settings.showToolEvents) return;
     for (const warning of warnings) {
-      this.addEphemeralToolEvent(`stderr: ${warning}`);
+      this.addEphemeralToolEvent(run, `stderr: ${warning}`);
     }
   }
 
-  private flushFailedStderr(): void {
-    const stderr = this.stderrBuffer.map((item) => item.trim()).filter(Boolean).join("\n");
-    this.stderrBuffer = [];
+  private flushFailedStderr(run: CodianRunState): void {
+    const stderr = run.stderrBuffer.map((item) => item.trim()).filter(Boolean).join("\n");
+    run.stderrBuffer = [];
     if (stderr) {
-      this.addMessage("error", stderr);
+      const conversation = this.getConversationById(run.conversationId);
+      if (conversation) this.addMessage("error", stderr, conversation);
     }
   }
 
-  private buildCodexArgs(vaultPath: string, mode: ConversationMode): string[] {
+  private buildCodexArgs(vaultPath: string, mode: ConversationMode, conversation: CodianConversation): string[] {
     const settings = this.plugin.data.settings;
-    const conversation = this.plugin.getActiveConversation();
     const args: string[] = ["exec"];
     const model = settings.model.trim();
     const effortArgs = buildReasoningEffortArgs(settings.modelReasoningEffort, mode);
@@ -1330,17 +1335,17 @@ ${instruction}`;
     return args;
   }
 
-  private handleStdout(text: string): void {
-    this.pendingLine += text;
-    const lines = this.pendingLine.split(/\r?\n/);
-    this.pendingLine = lines.pop() ?? "";
+  private handleStdout(run: CodianRunState, text: string): void {
+    run.pendingLine += text;
+    const lines = run.pendingLine.split(/\r?\n/);
+    run.pendingLine = lines.pop() ?? "";
 
     for (const line of lines) {
-      this.consumeJsonLine(line);
+      this.consumeJsonLine(run, line);
     }
   }
 
-  private consumeJsonLine(rawLine: string): void {
+  private consumeJsonLine(run: CodianRunState, rawLine: string): void {
     const line = rawLine.trim();
     if (!line) return;
 
@@ -1348,57 +1353,59 @@ ${instruction}`;
     try {
       event = JSON.parse(line) as CodexJsonEvent;
     } catch {
-      this.appendAssistantText(line);
+      this.appendAssistantText(run, line);
       return;
     }
 
     switch (event.type) {
       case "thread.started":
         if (event.thread_id) {
-          const conversation = this.plugin.getActiveConversation();
-          conversation.threadId = event.thread_id;
-          this.plugin.touchConversation(conversation);
-          this.setStatus(`Thread ${shortId(event.thread_id)} running...`);
+          const conversation = this.getConversationById(run.conversationId);
+          if (conversation) {
+            conversation.threadId = event.thread_id;
+            this.plugin.touchConversation(conversation);
+          }
+          if (this.isActiveConversation(run.conversationId)) this.setStatus(`Thread ${shortId(event.thread_id)} running...`);
         }
         break;
       case "turn.started":
-        this.setStatus("Codex is working...");
+        if (this.isActiveConversation(run.conversationId)) this.setStatus("Codex is working...");
         break;
       case "turn.completed":
-        this.setStatus(this.buildReadyStatus());
+        if (this.isActiveConversation(run.conversationId)) this.setStatus(this.buildReadyStatus());
         break;
       case "turn.failed":
-        this.addMessage("error", stringifyEventError(event));
-        this.setStatus("Codex turn failed", true);
+        this.addMessageToRun(run, "error", stringifyEventError(event));
+        if (this.isActiveConversation(run.conversationId)) this.setStatus("Codex turn failed", true);
         break;
       case "error":
-        this.addMessage("error", stringifyEventError(event));
-        this.setStatus("Codex error", true);
+        this.addMessageToRun(run, "error", stringifyEventError(event));
+        if (this.isActiveConversation(run.conversationId)) this.setStatus("Codex error", true);
         break;
       case "item.started":
       case "item.completed":
-        this.consumeItemEvent(event);
+        this.consumeItemEvent(run, event);
         break;
       default:
         if (this.plugin.data.settings.showToolEvents) {
-          this.addEphemeralToolEvent(JSON.stringify(event));
+          this.addEphemeralToolEvent(run, JSON.stringify(event));
         }
     }
   }
 
-  private consumeItemEvent(event: CodexJsonEvent): void {
+  private consumeItemEvent(run: CodianRunState, event: CodexJsonEvent): void {
     const item = event.item;
     if (!item) return;
 
     if (item.type === "agent_message" && typeof item.text === "string") {
-      this.appendAssistantText(item.text);
+      this.appendAssistantText(run, item.text);
       return;
     }
 
     if (item.type === "reasoning") {
       if (this.plugin.data.settings.showReasoning) {
         const summary = typeof item.summary === "string" ? item.summary : typeof item.text === "string" ? item.text : "";
-        if (summary.trim()) this.addEphemeralToolEvent(`reasoning: ${summary.trim()}`);
+        if (summary.trim()) this.addEphemeralToolEvent(run, `reasoning: ${summary.trim()}`);
       }
       return;
     }
@@ -1412,62 +1419,72 @@ ${instruction}`;
         item.status ? `status: ${item.status}` : "",
         item.output ? item.output : ""
       ].filter(Boolean);
-      this.addEphemeralToolEvent(parts.join("\n"));
+      this.addEphemeralToolEvent(run, parts.join("\n"));
       return;
     }
 
     if (typeof item.type === "string" && /plan/i.test(item.type)) {
       const text = typeof item.text === "string" ? item.text : typeof item.summary === "string" ? item.summary : JSON.stringify(item);
-      this.addEphemeralToolEvent(`plan update\n${text}`);
+      this.addEphemeralToolEvent(run, `plan update\n${text}`);
       return;
     }
 
     if (typeof item.type === "string" && /(file|patch|diff)/i.test(item.type)) {
       const text = typeof item.text === "string" ? item.text : JSON.stringify(item);
-      this.addEphemeralToolEvent(`${item.type}\n${text}`);
+      this.addEphemeralToolEvent(run, `${item.type}\n${text}`);
       return;
     }
 
     if (event.type === "item.completed") {
       const label = item.type ?? "item";
       const text = typeof item.text === "string" ? item.text : JSON.stringify(item);
-      this.addEphemeralToolEvent(`${label}: ${text}`);
+      this.addEphemeralToolEvent(run, `${label}: ${text}`);
     }
   }
 
-  private appendAssistantText(text: string): void {
-    const id = this.activeAssistantMessageId;
-    const conversation = this.plugin.getActiveConversation();
-    const message = id ? conversation.messages.find((candidate) => candidate.id === id) : null;
+  private appendAssistantText(run: CodianRunState, text: string): void {
+    const conversation = this.getConversationById(run.conversationId);
+    if (!conversation) return;
+    const message = conversation.messages.find((candidate) => candidate.id === run.assistantMessageId);
     if (!message) {
-      this.addMessage("assistant", text);
+      this.addMessage("assistant", text, conversation);
       return;
     }
 
     message.content += text;
     message.timestamp = Date.now();
     this.plugin.touchConversation(conversation);
-    this.updateMessage(message);
+    if (this.isActiveConversation(conversation.id)) this.updateMessage(message);
     this.plugin.requestSaveCodianData();
   }
 
-  private addEphemeralToolEvent(text: string): void {
+  private addEphemeralToolEvent(run: CodianRunState, text: string): void {
     if (!this.plugin.data.settings.showToolEvents) return;
     const trimmed = text.trim();
     if (!trimmed) return;
-    this.addMessage("tool", trimmed);
+    this.addMessageToRun(run, "tool", trimmed);
   }
 
-  private addMessage(role: MessageRole, content: string): CodianMessage {
+  private addMessageToRun(run: CodianRunState, role: MessageRole, content: string): CodianMessage | null {
+    const conversation = this.getConversationById(run.conversationId);
+    if (!conversation) return null;
+    return this.addMessage(role, content, conversation);
+  }
+
+  private addMessage(role: MessageRole, content: string, conversation = this.plugin.getActiveConversation()): CodianMessage {
     const message: CodianMessage = {
       id: createId(),
       role,
       content,
       timestamp: Date.now()
     };
-    const conversation = this.plugin.getActiveConversation();
     conversation.messages.push(message);
     this.plugin.touchConversation(conversation);
+
+    if (!this.isActiveConversation(conversation.id)) {
+      this.plugin.requestSaveCodianData();
+      return message;
+    }
 
     if (this.messageListEl?.querySelector(".codian-empty")) {
       this.messageListEl.empty();
@@ -1479,31 +1496,76 @@ ${instruction}`;
     return message;
   }
 
-  private finishWithError(message: string): void {
-    this.child = null;
-    this.activeAssistantMessageId = null;
-    this.addMessage("error", message);
-    this.setRunning(false);
-    this.setStatus(message, true);
+  private finishWithError(message: string, conversation = this.plugin.getActiveConversation()): void {
+    this.runs.delete(conversation.id);
+    this.addMessage("error", message, conversation);
+    this.refreshActiveRunUi();
+    if (this.isActiveConversation(conversation.id)) this.setStatus(message, true);
     void this.plugin.saveCodianData();
   }
 
   private stopCurrentRun(): void {
-    if (!this.child) return;
-    const running = this.child;
-    this.child = null;
+    const run = this.getActiveRun();
+    if (!run?.child) return;
+    run.stopped = true;
+    const running = run.child;
+    run.child = null;
     running.kill("SIGTERM");
     setTimeout(() => {
       if (!running.killed) running.kill("SIGKILL");
     }, 1500);
-    this.addMessage("system", "Stopped Codex.");
-    this.setRunning(false);
+    const conversation = this.getConversationById(run.conversationId);
+    if (conversation) this.addMessage("system", "Stopped Codex.", conversation);
+    this.refreshActiveRunUi();
     this.setStatus("Stopped");
+  }
+
+  private stopAllRuns(): void {
+    for (const run of this.runs.values()) {
+      if (!run.child) continue;
+      run.stopped = true;
+      const running = run.child;
+      run.child = null;
+      running.kill("SIGTERM");
+      setTimeout(() => {
+        if (!running.killed) running.kill("SIGKILL");
+      }, 1500);
+      const conversation = this.getConversationById(run.conversationId);
+      if (conversation) this.addMessage("system", "Stopped Codex.", conversation);
+    }
+    this.runs.clear();
+    this.refreshActiveRunUi();
   }
 
   private setRunning(running: boolean): void {
     if (this.runButtonEl) this.runButtonEl.disabled = running;
     if (this.inputEl) this.inputEl.disabled = running;
+  }
+
+  private refreshActiveRunUi(): void {
+    const run = this.getActiveRun();
+    this.setRunning(Boolean(run));
+    if (run) {
+      this.setStatus("Codex is working...");
+    } else {
+      this.setStatus(this.buildReadyStatus());
+    }
+  }
+
+  private getActiveRun(): CodianRunState | null {
+    return this.runs.get(this.plugin.getActiveConversation().id) ?? null;
+  }
+
+  private isConversationRunning(conversationId: string): boolean {
+    return this.runs.has(conversationId);
+  }
+
+  private isActiveConversation(conversationId: string): boolean {
+    return this.plugin.getActiveConversation().id === conversationId;
+  }
+
+  private getConversationById(conversationId: string): CodianConversation | null {
+    return this.plugin.data.conversations.find((conversation) => conversation.id === conversationId) ?? null;
   }
 
   private setStatus(text: string, isError = false): void {
