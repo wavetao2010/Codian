@@ -2,16 +2,16 @@
 
 [English](README.md) | 简体中文
 
-Codex Companion 是一个 Obsidian 桌面插件，它会把本地 Codex CLI 嵌入到保险库内的聊天视图中。
+Codex Companion 是一个 Obsidian 桌面插件，它会把本地 Codex CLI 嵌入到Obsidian内的聊天视图中。
 
-它适合希望直接在 Obsidian 保险库中使用 Codex 进行代码协作和写作协作的用户。Codex Companion 会从当前保险库目录运行 Codex，持续流式显示 Codex 输出，并可以把笔记或选中文本作为上下文发送给 Codex。
+它适合希望直接在 Obsidian中使用 Codex 进行代码协作和写作协作的用户。Codex Companion 会从当前Obsidian目录运行 Codex，持续流式显示 Codex 输出，并可以把笔记或选中文本作为上下文发送给 Codex。
 
 ## 功能
 
-- 从当前保险库运行 `codex exec --json`。
+- 从当前Obsidian运行 `codex exec --json`。
 - 在 Obsidian 聊天视图中流式显示 Codex 回复、推理摘要和工具事件。
 - 保留多个对话，并让不同对话对应独立的 Codex 线程。
-- 将当前笔记、选中文本和指定的保险库文件附加为上下文。
+- 将当前笔记、选中文本和指定的Obsidian文件附加为上下文。
 - 在输入框中使用 `@` 提及建议来附加笔记和文件。
 - 在插件工具栏中选择 Codex 模型和推理强度。
 - 在普通代理模式和 Plan 模式之间切换。
@@ -54,9 +54,9 @@ codex exec --json "summarize this folder" --skip-git-repo-check
 
 ## 安全说明
 
-Codex Companion 会从你的保险库目录本地运行 Codex CLI。根据你的 Codex CLI 配置和沙箱模式，提示词、附加笔记、选中文本、文件路径和工具输出可能会发送给 Codex。
+Codex Companion 会从你的Obsidian目录本地运行 Codex CLI。根据你的 Codex CLI 配置和沙箱模式，提示词、附加笔记、选中文本、文件路径和工具输出可能会发送给 Codex。
 
-默认沙箱模式是 `workspace-write`，这表示 Codex 可以在 Codex 沙箱约束下修改保险库文件。如果只需要分析和回答，请使用 `read-only`。在允许自动编辑重要保险库前，请使用备份或版本控制。
+默认沙箱模式是 `workspace-write`，这表示 Codex 可以在 Codex 沙箱约束下修改Obsidian文件。如果只需要分析和回答，请使用 `read-only`。在允许自动编辑重要Obsidian前，请使用备份或版本控制。
 
 ## Windows 兼容性
 
@@ -79,7 +79,7 @@ npm run build
 
 ## 手动安装
 
-在你的保险库中创建以下文件夹：
+在你的Obsidian中创建以下文件夹：
 
 ```text
 .obsidian/plugins/codian
