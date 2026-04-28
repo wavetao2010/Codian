@@ -166,6 +166,9 @@ const DEFAULT_DATA: CodianData = {
 
 export default class CodianPlugin extends Plugin {
   data: CodianData = { ...DEFAULT_DATA, settings: { ...DEFAULT_SETTINGS } };
+  private saveTimer: ReturnType<typeof setTimeout> | null = null;
+  private savingData: Promise<void> | null = null;
+  private needsSaveAfterCurrentSave = false;
 
   async onload(): Promise<void> {
     await this.loadCodianData();
@@ -251,6 +254,10 @@ export default class CodianPlugin extends Plugin {
     this.addSettingTab(new CodianSettingTab(this.app, this));
   }
 
+  async onunload(): Promise<void> {
+    await this.flushCodianData();
+  }
+
   async activateView(): Promise<void> {
     const { workspace } = this.app;
     let leaf = workspace.getLeavesOfType(VIEW_TYPE_CODIAN)[0];
@@ -304,7 +311,43 @@ export default class CodianPlugin extends Plugin {
   }
 
   async saveCodianData(): Promise<void> {
-    await this.saveData(this.data);
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = null;
+    }
+
+    if (this.savingData) {
+      this.needsSaveAfterCurrentSave = true;
+      await this.savingData;
+      if (this.needsSaveAfterCurrentSave) {
+        return this.saveCodianData();
+      }
+      return;
+    }
+
+    this.needsSaveAfterCurrentSave = false;
+    this.savingData = this.saveData(this.data).finally(() => {
+      this.savingData = null;
+    });
+    await this.savingData;
+
+    if (this.needsSaveAfterCurrentSave) {
+      await this.saveCodianData();
+    }
+  }
+
+  requestSaveCodianData(delay = 300): void {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+    }
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = null;
+      void this.saveCodianData();
+    }, delay);
+  }
+
+  async flushCodianData(): Promise<void> {
+    await this.saveCodianData();
   }
 
   getVaultPath(): string | null {
@@ -553,6 +596,7 @@ class CodianView extends ItemView {
   async onClose(): Promise<void> {
     this.stopCurrentRun();
     this.hideMentionSuggestions();
+    await this.plugin.flushCodianData();
   }
 
   render(): void {
@@ -1404,6 +1448,7 @@ ${instruction}`;
     message.timestamp = Date.now();
     this.plugin.touchConversation(conversation);
     this.updateMessage(message);
+    this.plugin.requestSaveCodianData();
   }
 
   private addEphemeralToolEvent(text: string): void {
@@ -1430,6 +1475,7 @@ ${instruction}`;
 
     this.renderMessage(message);
     this.scrollToBottom();
+    this.plugin.requestSaveCodianData();
     return message;
   }
 
