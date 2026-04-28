@@ -1,5 +1,7 @@
 # Codex Companion
 
+English | [简体中文](README.zh-CN.md)
+
 Codex Companion is an Obsidian desktop plugin that embeds the local Codex CLI in a vault chat view.
 
 It is designed for people who want to use Codex as a coding and writing collaborator directly inside a vault. Codex Companion runs Codex from the current vault folder, streams Codex output into a side view, and can attach notes or selected text as context.
@@ -55,6 +57,16 @@ codex exec --json "summarize this folder" --skip-git-repo-check
 Codex Companion runs Codex CLI locally from your vault folder. Depending on your Codex CLI configuration and selected sandbox mode, prompts, attached notes, selected text, file paths, and tool output may be sent to Codex.
 
 The default sandbox mode is `workspace-write`, which allows Codex to modify files in the vault under Codex sandboxing. Use `read-only` if you only want analysis and answers. Use backups or version control for important vaults before allowing automated edits.
+
+## Windows compatibility
+
+On Windows, Codex Companion launches npm-generated `codex.cmd` and `codex.bat` shims through their underlying Node.js entry file. This avoids `spawn EINVAL` errors that can happen when Obsidian/Electron tries to spawn a command shim directly.
+
+If you use Windows and see **Codex CLI not found**, set **Codex CLI path** to the full path of `codex.cmd`, or make sure the directory that contains `codex.cmd` and `node.exe` is available in your `PATH`.
+
+## Credits
+
+Windows compatibility fixes were contributed by [Rivflyyy](https://github.com/Rivflyyy/).
 
 ## Build
 

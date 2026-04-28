@@ -466,7 +466,7 @@ export default class CodianPlugin extends Plugin {
   buildEnvironment(codexPath: string): NodeJS.ProcessEnv {
     const customEnv = parseEnvironmentVariables(this.data.settings.environmentVariables);
     const codexDir = path.dirname(codexPath);
-    const existingPath = customEnv.PATH || process.env.PATH || "";
+    const existingPath = customEnv.PATH || customEnv.Path || process.env.PATH || process.env.Path || "";
     const pathParts = [
       codexDir,
       path.join(os.homedir(), ".local", "bin"),
@@ -516,7 +516,8 @@ export default class CodianPlugin extends Plugin {
     ];
 
     return new Promise((resolve, reject) => {
-      const child = spawn(codexPath, args, {
+      const codexSpawn = buildCodexSpawn(codexPath, args);
+      const child = spawn(codexSpawn.command, codexSpawn.args, {
         cwd: vaultPath,
         env: this.buildEnvironment(codexPath),
         stdio: "pipe"
@@ -568,6 +569,7 @@ class CodianView extends ItemView {
   private statusEl: HTMLElement | null = null;
   private inputEl: HTMLTextAreaElement | null = null;
   private runButtonEl: HTMLButtonElement | null = null;
+  private stopButtonEl: HTMLButtonElement | null = null;
   private runs = new Map<string, CodianRunState>();
   private mentionSuggestEl: HTMLElement | null = null;
   private mentionSuggestions: MentionSuggestion[] = [];
@@ -649,9 +651,6 @@ class CodianView extends ItemView {
       this.render();
     };
 
-    const stopButton = this.createIconButton(actions, "square", "Stop Codex");
-    stopButton.onclick = () => this.stopCurrentRun();
-
     this.renderConversationTabs();
 
     this.statusEl = this.containerEl.createDiv({ cls: "codian-status" });
@@ -719,6 +718,15 @@ class CodianView extends ItemView {
     });
     setIcon(this.runButtonEl.createSpan({ cls: "codian-run-icon" }), "send");
     this.runButtonEl.onclick = () => void this.sendPrompt();
+
+    this.stopButtonEl = controls.createEl("button", {
+      cls: "codian-stop-button",
+      text: "Stop",
+      attr: { title: "Stop Codex" }
+    });
+    setIcon(this.stopButtonEl.createSpan({ cls: "codian-run-icon" }), "square");
+    this.stopButtonEl.onclick = () => this.stopCurrentRun();
+
     this.refreshActiveRunUi();
   }
 
@@ -1150,9 +1158,10 @@ class CodianView extends ItemView {
 
     const args = this.buildCodexArgs(vaultPath, turnMode, conversation);
     const env = this.plugin.buildEnvironment(codexPath);
+    const codexSpawn = buildCodexSpawn(codexPath, args);
 
     try {
-      run.child = spawn(codexPath, args, {
+      run.child = spawn(codexSpawn.command, codexSpawn.args, {
         cwd: vaultPath,
         env,
         stdio: "pipe"
@@ -1539,6 +1548,7 @@ ${instruction}`;
 
   private setRunning(running: boolean): void {
     if (this.runButtonEl) this.runButtonEl.disabled = running;
+    if (this.stopButtonEl) this.stopButtonEl.disabled = !running;
     if (this.inputEl) this.inputEl.disabled = running;
   }
 
@@ -2040,6 +2050,42 @@ class TextPromptModal extends Modal {
   }
 }
 
+function buildCodexSpawn(codexPath: string, args: string[]): { command: string; args: string[] } {
+  const nodeScriptPath = process.platform === "win32" ? resolveWindowsNodeShimScript(codexPath) : null;
+  if (nodeScriptPath) {
+    return { command: resolveWindowsNodeForShim(codexPath), args: [nodeScriptPath, ...args] };
+  }
+  return { command: codexPath, args };
+}
+
+function resolveWindowsNodeForShim(shimPath: string): string {
+  const localNodePath = path.join(path.dirname(shimPath), "node.exe");
+  return isExecutableFile(localNodePath) ? localNodePath : "node";
+}
+
+function resolveWindowsNodeShimScript(shimPath: string): string | null {
+  const cmdShimPath = resolveWindowsCommandShimPath(shimPath);
+  if (!cmdShimPath) return null;
+
+  let content: string;
+  try {
+    content = fs.readFileSync(cmdShimPath, "utf8");
+  } catch {
+    return null;
+  }
+
+  const scriptMatch = content.match(/"%dp0%\\([^"\r\n]+)"\s+%\*/i);
+  if (!scriptMatch) return null;
+
+  const scriptPath = path.resolve(path.dirname(cmdShimPath), scriptMatch[1]);
+  return isExecutableFile(scriptPath) ? scriptPath : null;
+}
+
+function resolveWindowsCommandShimPath(shimPath: string): string | null {
+  if (/\.(cmd|bat)$/i.test(shimPath)) return shimPath;
+  const cmdShimPath = `${shimPath}.cmd`;
+  return isExecutableFile(cmdShimPath) ? cmdShimPath : null;
+}
 function findCodexCli(): string | null {
   const candidates = new Set<string>();
   const pathValue = process.env.PATH ?? "";
