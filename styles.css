@@ -35,6 +35,27 @@
   paint-order: stroke fill;
 }
 
+.workspace-tab-header[data-type="codian-view"] .workspace-tab-header-inner-icon,
+.workspace-tab-header[aria-label="Codian"] .workspace-tab-header-inner-icon {
+  --icon-size: 22px;
+  color: #5C5C5C;
+  opacity: 1;
+}
+
+.workspace-tab-header[data-type="codian-view"] .workspace-tab-header-inner-icon svg,
+.workspace-tab-header[aria-label="Codian"] .workspace-tab-header-inner-icon svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.workspace-tab-header[data-type="codian-view"] .workspace-tab-header-inner-icon svg [fill="#5C5C5C"],
+.workspace-tab-header[aria-label="Codian"] .workspace-tab-header-inner-icon svg [fill="#5C5C5C"] {
+  stroke: #5C5C5C;
+  stroke-width: 18;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+}
+
 .codian-toolbar {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) auto auto;
