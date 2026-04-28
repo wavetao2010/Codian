@@ -10,6 +10,18 @@
   color: var(--text-normal);
 }
 
+.workspace-ribbon .codian-ribbon-icon,
+.workspace-ribbon .codian-ribbon-icon:hover,
+.workspace-ribbon .codian-ribbon-icon:focus {
+  color: #5C5C5C !important;
+  opacity: 1 !important;
+}
+
+.workspace-ribbon .codian-ribbon-icon svg,
+.workspace-ribbon .codian-ribbon-icon svg * {
+  opacity: 1 !important;
+}
+
 .codian-toolbar {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) auto auto;

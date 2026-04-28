@@ -175,9 +175,10 @@ export default class CodianPlugin extends Plugin {
 
     this.registerView(VIEW_TYPE_CODIAN, (leaf) => new CodianView(leaf, this));
 
-    this.addRibbonIcon(CODIAN_ICON_ID, "Open Codian", () => {
+    const ribbonIconEl = this.addRibbonIcon(CODIAN_ICON_ID, "Open Codian", () => {
       void this.activateView();
     });
+    ribbonIconEl.addClass("codian-ribbon-icon");
 
     this.addCommand({
       id: "open-codian",
