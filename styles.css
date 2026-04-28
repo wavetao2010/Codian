@@ -35,15 +35,15 @@
   width: 32px;
   height: 32px;
   flex: 0 0 auto;
-  color: var(--codian-accent);
+  color: #717171;
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
-  background: var(--codian-accent-soft);
+  background: #FBFBFB;
 }
 
 .codian-brand-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
 }
 
 .codian-brand-text {
