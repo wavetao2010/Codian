@@ -1,7 +1,7 @@
 {
   "name": "codian",
   "version": "0.1.0",
-  "description": "Obsidian plugin that embeds Codex CLI in a vault chat view.",
+  "description": "Obsidian plugin that connects Codex CLI to a vault chat view.",
   "main": "main.js",
   "author": "wavetao2010",
   "repository": {
