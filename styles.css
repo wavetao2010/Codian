@@ -709,7 +709,8 @@
   max-width: 138px;
 }
 
-.codian-run-button {
+.codian-run-button,
+.codian-stop-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -720,11 +721,17 @@
   border-radius: 6px;
 }
 
-.codian-run-button .codian-run-icon {
+.codian-stop-button {
+  min-width: 72px;
+}
+
+.codian-run-button .codian-run-icon,
+.codian-stop-button .codian-run-icon {
   display: inline-flex;
 }
 
-.codian-run-button svg {
+.codian-run-button svg,
+.codian-stop-button svg {
   width: 14px;
   height: 14px;
 }
@@ -838,7 +845,8 @@
   }
 
   .codian-model-select,
-  .codian-run-button {
+  .codian-run-button,
+  .codian-stop-button {
     width: 100%;
     max-width: 100%;
   }
