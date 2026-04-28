@@ -2,30 +2,59 @@
 
 Codian is an Obsidian desktop plugin that embeds the local Codex CLI in a vault chat view.
 
-It follows the same broad idea as Claudian, but targets Codex:
+It is designed for people who want to use Codex as a coding and writing collaborator directly inside an Obsidian vault. Codian runs Codex from the current vault folder, streams Codex output into an Obsidian side view, and can attach notes or selected text as context.
 
-- runs `codex exec --json` from inside the current vault
-- streams JSONL events into an Obsidian view
-- resumes the current Codex thread when Codex reports a `thread_id`
-- supports custom Codex CLI path, model, sandbox mode, approval policy, extra CLI args, and environment variables
-- supports multiple chat tabs with independent Codex threads
-- can attach active note, selected text, and chosen vault files as context
-- includes slash commands such as `/plan`, `/summarize`, `/rewrite`, `/find`, and `/review`
-- includes inline selection editing from the Obsidian command palette
-- includes a Codian Plan mode that runs Codex in read-only mode and asks for an implementation plan instead of edits
+## Features
+
+- Run `codex exec --json` from inside the current vault
+- Stream Codex responses, reasoning summaries, and tool events into an Obsidian chat view
+- Keep multiple Codian conversations with independent Codex threads
+- Attach the active note, selected text, and chosen vault files as context
+- Use `@` mention suggestions to attach notes and files from the composer
+- Select Codex model and reasoning effort from the Codian toolbar
+- Switch between normal agent mode and Codian Plan mode
+- Run inline edits on selected text from the Obsidian command palette
+- Use slash commands such as `/plan`, `/summarize`, `/rewrite`, `/find`, and `/review`
 
 ## Requirements
 
 - Obsidian desktop
 - Codex CLI installed and authenticated
-- Node.js for building the plugin
+- A Codex CLI configuration that can run from your terminal
 
-Check your Codex CLI:
+Codian is desktop-only because it uses local Node.js APIs and spawns the Codex CLI process.
+
+Check your Codex CLI before using Codian:
 
 ```bash
 codex --help
 codex exec --json "summarize this folder" --skip-git-repo-check
 ```
+
+## Usage
+
+1. Enable Codian in Obsidian's community plugin settings.
+2. Open Codian from the ribbon icon or command palette.
+3. Check Codian settings if the plugin cannot find your Codex CLI path automatically.
+4. Type a prompt and press Enter on macOS, or Ctrl/Mod+Enter on other platforms.
+5. Attach note context with the paperclip button or by typing `@` in the composer.
+
+## Settings
+
+- **Codex CLI path**: Optional explicit path to the `codex` executable.
+- **Model**: Optional model override passed to Codex.
+- **Reasoning effort**: Optional reasoning effort override.
+- **Sandbox mode**: Codex sandbox mode, such as `read-only` or `workspace-write`.
+- **Approval policy**: Codex approval policy.
+- **Environment variables**: Extra environment variables for the Codex process.
+- **Context options**: Toggle active note and selected text context.
+- **Conversation limit**: Maximum number of saved Codian conversations.
+
+## Safety
+
+Codian runs Codex CLI locally from your vault folder. Depending on your Codex CLI configuration and selected sandbox mode, prompts, attached notes, selected text, file paths, and tool output may be sent to Codex.
+
+The default sandbox mode is `workspace-write`, which allows Codex to modify files in the vault under Codex sandboxing. Use `read-only` if you only want analysis and answers. Use backups or version control for important vaults before allowing automated edits.
 
 ## Build
 
@@ -36,7 +65,7 @@ npm run build
 
 This produces `main.js` next to `manifest.json` and `styles.css`.
 
-## Install into a vault
+## Manual installation
 
 Create this folder in your vault:
 
@@ -44,7 +73,7 @@ Create this folder in your vault:
 .obsidian/plugins/codian
 ```
 
-Copy or symlink these files into it:
+Copy these files into it:
 
 ```text
 manifest.json
@@ -54,6 +83,14 @@ styles.css
 
 Then restart Obsidian or reload plugins and enable **Codian**.
 
-## Notes
+## Release assets
 
-The default sandbox is `workspace-write`, so Codex can edit files in the vault while still running under Codex sandboxing. Change this to `read-only` in settings if you only want analysis and answers.
+For an Obsidian community plugin release, attach these files to the GitHub release:
+
+```text
+manifest.json
+main.js
+styles.css
+```
+
+The Codian icon is bundled into `main.js` during build, so `icon.svg` is kept in the repository for source maintenance but is not required as a release asset.

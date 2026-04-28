@@ -29,6 +29,9 @@ const context = await esbuild.context({
   ],
   format: "cjs",
   target: "es2022",
+  loader: {
+    ".svg": "text"
+  },
   logLevel: "info",
   sourcemap: production ? false : "inline",
   treeShaking: true,

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "minAppVersion": "1.4.5",
   "description": "Embeds Codex CLI as an AI coding collaborator inside your Obsidian vault.",
-  "author": "chan",
-  "authorUrl": "",
+  "author": "wavetao2010",
+  "authorUrl": "https://github.com/wavetao2010",
   "isDesktopOnly": true
 }

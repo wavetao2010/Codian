@@ -18,16 +18,12 @@ import { ChildProcessWithoutNullStreams, spawn } from "child_process";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import codianIconSvg from "../icon.svg";
 
 const VIEW_TYPE_CODIAN = "codian-view";
 const CODIAN_ICON_ID = "codian-codex";
 const CODIAN_ICON_SOURCE_SIZE = 1254;
-const CODIAN_FALLBACK_ICON_SVG = `
-<rect x="8" y="8" width="84" height="84" rx="18" fill="none" stroke="currentColor" stroke-width="7"/>
-<path d="M28 61a18 18 0 0 1 4-35 22 22 0 0 1 38-9 19 19 0 0 1 22 23 20 20 0 0 1-9 36 22 22 0 0 1-39 9 23 23 0 0 1-31-16" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="m36 43 13 13-13 13" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
-<path d="M58 68h22" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round"/>
-`;
+const CODIAN_BUNDLED_ICON_SVG = normalizeImportedIconSvg(codianIconSvg);
 const PLAN_MODE_INSTRUCTIONS = `PLAN MODE
 You are in planning mode. Do not modify files, do not run destructive commands, and do not apply changes.
 Return a concise implementation plan with:
@@ -275,13 +271,13 @@ export default class CodianPlugin extends Plugin {
   loadCodianIconSvg(): string {
     const vaultPath = this.getVaultPath();
     const pluginDir = this.manifest.dir && vaultPath ? path.join(vaultPath, this.manifest.dir) : null;
-    if (!pluginDir) return CODIAN_FALLBACK_ICON_SVG;
+    if (!pluginDir) return CODIAN_BUNDLED_ICON_SVG;
 
     try {
       const iconSvg = fs.readFileSync(path.join(pluginDir, "icon.svg"), "utf8");
       return normalizeImportedIconSvg(iconSvg);
     } catch {
-      return CODIAN_FALLBACK_ICON_SVG;
+      return CODIAN_BUNDLED_ICON_SVG;
     }
   }
 
