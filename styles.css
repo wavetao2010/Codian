@@ -13,6 +13,7 @@
 .workspace-ribbon .codian-ribbon-icon,
 .workspace-ribbon .codian-ribbon-icon:hover,
 .workspace-ribbon .codian-ribbon-icon:focus {
+  --icon-size: 21px;
   color: #5C5C5C !important;
   opacity: 1 !important;
 }
@@ -20,6 +21,18 @@
 .workspace-ribbon .codian-ribbon-icon svg,
 .workspace-ribbon .codian-ribbon-icon svg * {
   opacity: 1 !important;
+}
+
+.workspace-ribbon .codian-ribbon-icon svg {
+  width: 21px !important;
+  height: 21px !important;
+}
+
+.workspace-ribbon .codian-ribbon-icon svg [fill="#5C5C5C"] {
+  stroke: #5C5C5C;
+  stroke-width: 28;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
 }
 
 .codian-toolbar {
