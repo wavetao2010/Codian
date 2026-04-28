@@ -72,6 +72,7 @@ interface CodianSettings {
   includeCurrentNoteContext: boolean;
   includeSelectedTextContext: boolean;
   maxConversations: number;
+  eventDisplayPreferenceVersion: number;
 }
 
 interface CodianData {
@@ -131,11 +132,12 @@ const DEFAULT_SETTINGS: CodianSettings = {
   environmentVariables: "",
   extraArgs: "",
   showReasoning: true,
-  showToolEvents: true,
+  showToolEvents: false,
   autoScroll: true,
   includeCurrentNoteContext: true,
   includeSelectedTextContext: true,
-  maxConversations: 8
+  maxConversations: 8,
+  eventDisplayPreferenceVersion: 1
 };
 
 const MODEL_OPTIONS = [
@@ -285,11 +287,17 @@ export default class CodianPlugin extends Plugin {
     const saved = (await this.loadData()) as Partial<CodianData> | null;
     const conversations = migrateConversations(saved);
     const activeConversationId = resolveActiveConversationId(saved?.activeConversationId, conversations);
+    const savedSettings: Partial<CodianSettings> = saved?.settings ?? {};
+    const migratedSettings = {
+      ...DEFAULT_SETTINGS,
+      ...savedSettings
+    };
+    if (!savedSettings.eventDisplayPreferenceVersion) {
+      migratedSettings.showToolEvents = false;
+      migratedSettings.eventDisplayPreferenceVersion = 1;
+    }
     this.data = {
-      settings: {
-        ...DEFAULT_SETTINGS,
-        ...(saved?.settings ?? {})
-      },
+      settings: migratedSettings,
       activeConversationId,
       conversations
     };
@@ -994,6 +1002,7 @@ class CodianView extends ItemView {
     }
 
     for (const message of conversation.messages) {
+      if (message.role === "tool" && !this.plugin.data.settings.showToolEvents) continue;
       this.renderMessage(message);
     }
 
@@ -1030,7 +1039,9 @@ class CodianView extends ItemView {
   private renderMessageBody(body: HTMLElement, message: CodianMessage): void {
     body.empty();
     if (message.role === "assistant" || message.role === "user") {
-      void MarkdownRenderer.render(this.app, message.content || " ", body, "", this);
+      void MarkdownRenderer.render(this.app, message.content || " ", body, "", this).then(() => {
+        this.bindInternalMarkdownLinks(body);
+      });
       return;
     }
     if (message.role === "tool") {
@@ -1140,6 +1151,23 @@ class CodianView extends ItemView {
       }
 
       await this.plugin.saveCodianData();
+    });
+  }
+
+  private bindInternalMarkdownLinks(container: HTMLElement): void {
+    const sourcePath = this.app.workspace.getActiveFile()?.path ?? "";
+    const links = container.querySelectorAll<HTMLAnchorElement>("a.internal-link, a[href]");
+    links.forEach((link) => {
+      const rawTarget = link.getAttr("data-href") ?? link.getAttr("href") ?? "";
+      const target = normalizeVaultLinkTarget(rawTarget);
+      if (!target || isExternalUrl(target)) return;
+
+      link.addClass("internal-link");
+      link.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void this.app.workspace.openLinkText(target, sourcePath, false);
+      };
     });
   }
 
@@ -1379,6 +1407,7 @@ ${instruction}`;
   }
 
   private addEphemeralToolEvent(text: string): void {
+    if (!this.plugin.data.settings.showToolEvents) return;
     const trimmed = text.trim();
     if (!trimmed) return;
     this.addMessage("tool", trimmed);
@@ -1563,7 +1592,7 @@ class CodianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Show reasoning events")
-      .setDesc("Displays reasoning summary events when Codex emits them.")
+      .setDesc("Displays reasoning summary events when debug tool events are enabled.")
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.data.settings.showReasoning)
@@ -1575,13 +1604,15 @@ class CodianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Show tool events")
-      .setDesc("Displays command and tool events emitted by `codex exec --json`.")
+      .setDesc("Debug option. When off, command/tool events are hidden from the chat transcript.")
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.data.settings.showToolEvents)
           .onChange(async (value) => {
             this.plugin.data.settings.showToolEvents = value;
+            this.plugin.data.settings.eventDisplayPreferenceVersion = 1;
             await this.plugin.saveCodianData();
+            this.plugin.getView()?.render();
           });
       });
 
@@ -1938,6 +1969,36 @@ function findCodexCli(): string | null {
 function isAttachableContextFile(file: TFile): boolean {
   if (file.path.startsWith(".obsidian/")) return false;
   return /\.(md|txt|canvas|json|csv|tsv|js|ts|tsx|jsx|css|html|py|toml|yaml|yml)$/i.test(file.path);
+}
+
+function normalizeVaultLinkTarget(target: string): string {
+  let normalized = target.trim();
+  if (/^obsidian:\/\//i.test(normalized)) {
+    try {
+      const url = new URL(normalized);
+      normalized = url.searchParams.get("file") ?? url.searchParams.get("path") ?? normalized.replace(/^obsidian:\/\//i, "");
+    } catch {
+      normalized = normalized.replace(/^obsidian:\/\//i, "");
+    }
+  }
+
+  return decodeLinkTarget(normalized)
+    .replace(/^obsidian:\/\//i, "")
+    .replace(/^app:\/\//i, "")
+    .replace(/^#/, "")
+    .replace(/^\.\//, "");
+}
+
+function isExternalUrl(target: string): boolean {
+  return /^(https?:|mailto:|file:|data:|ftp:)/i.test(target);
+}
+
+function decodeLinkTarget(target: string): string {
+  try {
+    return decodeURIComponent(target);
+  } catch {
+    return target.replace(/%20/g, " ");
+  }
 }
 
 function normalizeImportedIconSvg(svg: string): string {
