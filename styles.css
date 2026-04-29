@@ -415,6 +415,10 @@
   -webkit-user-select: text;
 }
 
+.codian-message-body.is-streaming {
+  white-space: pre-wrap;
+}
+
 .codian-message-body p {
   margin: 0 0 8px;
 }

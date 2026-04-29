@@ -115,6 +115,7 @@ interface CodianRunState {
   pendingLine: string;
   stderrBuffer: string[];
   stopped: boolean;
+  receivedAssistantDelta: boolean;
 }
 
 type MentionSuggestion =
@@ -1090,6 +1091,12 @@ class CodianView extends ItemView {
   private renderMessageBody(body: HTMLElement, message: CodianMessage): void {
     body.empty();
     if (message.role === "assistant" || message.role === "user") {
+      if (this.isStreamingAssistantMessage(message)) {
+        body.addClass("is-streaming");
+        body.setText(message.content || " ");
+        return;
+      }
+      body.removeClass("is-streaming");
       void MarkdownRenderer.render(this.app, message.content || " ", body, "", this).then(() => {
         this.bindInternalMarkdownLinks(body);
       });
@@ -1149,7 +1156,8 @@ class CodianView extends ItemView {
       child: null,
       pendingLine: "",
       stderrBuffer: [],
-      stopped: false
+      stopped: false,
+      receivedAssistantDelta: false
     };
     this.runs.set(conversation.id, run);
 
@@ -1197,6 +1205,7 @@ class CodianView extends ItemView {
       }
 
       this.runs.delete(run.conversationId);
+      this.renderCompletedAssistantMessage(run);
       if (run.stopped || signal) {
         if (this.isActiveConversation(run.conversationId)) this.setStatus("Stopped");
       } else if (code === 0) {
@@ -1366,6 +1375,13 @@ ${instruction}`;
       return;
     }
 
+    const deltaText = extractAssistantDeltaText(event);
+    if (deltaText) {
+      run.receivedAssistantDelta = true;
+      this.appendAssistantText(run, deltaText);
+      return;
+    }
+
     switch (event.type) {
       case "thread.started":
         if (event.thread_id) {
@@ -1407,7 +1423,11 @@ ${instruction}`;
     if (!item) return;
 
     if (item.type === "agent_message" && typeof item.text === "string") {
-      this.appendAssistantText(run, item.text);
+      if (run.receivedAssistantDelta) {
+        this.setAssistantText(run, item.text);
+      } else {
+        this.appendAssistantText(run, item.text);
+      }
       return;
     }
 
@@ -1461,6 +1481,19 @@ ${instruction}`;
     }
 
     message.content += text;
+    message.timestamp = Date.now();
+    this.plugin.touchConversation(conversation);
+    if (this.isActiveConversation(conversation.id)) this.updateMessage(message);
+    this.plugin.requestSaveCodianData();
+  }
+
+  private setAssistantText(run: CodianRunState, text: string): void {
+    const conversation = this.getConversationById(run.conversationId);
+    if (!conversation) return;
+    const message = conversation.messages.find((candidate) => candidate.id === run.assistantMessageId);
+    if (!message) return;
+
+    message.content = text;
     message.timestamp = Date.now();
     this.plugin.touchConversation(conversation);
     if (this.isActiveConversation(conversation.id)) this.updateMessage(message);
@@ -1564,6 +1597,20 @@ ${instruction}`;
 
   private getActiveRun(): CodianRunState | null {
     return this.runs.get(this.plugin.getActiveConversation().id) ?? null;
+  }
+
+  private isStreamingAssistantMessage(message: CodianMessage): boolean {
+    for (const run of this.runs.values()) {
+      if (run.assistantMessageId === message.id) return true;
+    }
+    return false;
+  }
+
+  private renderCompletedAssistantMessage(run: CodianRunState): void {
+    if (!this.isActiveConversation(run.conversationId)) return;
+    const conversation = this.getConversationById(run.conversationId);
+    const message = conversation?.messages.find((candidate) => candidate.id === run.assistantMessageId);
+    if (message) this.updateMessage(message);
   }
 
   private isConversationRunning(conversationId: string): boolean {
@@ -2056,6 +2103,30 @@ function buildCodexSpawn(codexPath: string, args: string[]): { command: string; 
     return { command: resolveWindowsNodeForShim(codexPath), args: [nodeScriptPath, ...args] };
   }
   return { command: codexPath, args };
+}
+
+function extractAssistantDeltaText(event: CodexJsonEvent): string {
+  const eventType = typeof event.type === "string" ? event.type : "";
+  const itemType = typeof event.item?.type === "string" ? event.item.type : "";
+  const combinedType = `${eventType} ${itemType}`;
+  if (!/(agent_message|assistant|message|output_text|response).*delta|delta.*(agent_message|assistant|message|output_text|response)/i.test(combinedType)) {
+    return "";
+  }
+
+  const candidates = [
+    event.item?.text,
+    event.item?.delta,
+    event.item?.output,
+    event.text,
+    event.delta,
+    event.message
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate) return candidate;
+  }
+
+  return "";
 }
 
 function resolveWindowsNodeForShim(shimPath: string): string {
