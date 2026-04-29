@@ -186,25 +186,25 @@ export default class CodianPlugin extends Plugin {
 
     this.registerView(VIEW_TYPE_CODIAN, (leaf) => new CodianView(leaf, this));
 
-    const ribbonIconEl = this.addRibbonIcon(CODIAN_ICON_ID, "Open Codian", () => {
+    const ribbonIconEl = this.addRibbonIcon(CODIAN_ICON_ID, "Open codian", () => {
       void this.activateView();
     });
     ribbonIconEl.addClass("codian-ribbon-icon");
 
     this.addCommand({
-      id: "open-codian",
-      name: "Open Codian",
+      id: "open",
+      name: "Open codian",
       callback: () => void this.activateView()
     });
 
     this.addCommand({
       id: "new-codex-thread",
-      name: "Start new Codex thread",
+      name: "Start new conversation",
       callback: async () => {
         this.createConversation();
         await this.saveCodianData();
         this.getView()?.render();
-        new Notice("Started a new Codex thread");
+        new Notice("Started a new conversation");
       }
     });
 
@@ -232,7 +232,7 @@ export default class CodianPlugin extends Plugin {
       editorCallback: async (editor, view) => {
         const selectedText = editor.getSelection();
         if (!selectedText.trim()) {
-          new Notice("Select text before running Codian inline edit.");
+          new Notice("Select text before running the inline edit.");
           return;
         }
 
@@ -245,7 +245,7 @@ export default class CodianPlugin extends Plugin {
           return;
         }
 
-        new Notice("Codian is editing the selection...");
+        new Notice("Editing the selection...");
         try {
           const replacement = await this.runCodexOnce(buildInlineEditPrompt(instruction, selectedText, view.file?.path ?? "unknown"));
           const cleaned = cleanInlineEditResponse(replacement);
@@ -254,9 +254,9 @@ export default class CodianPlugin extends Plugin {
             return;
           }
           editor.replaceSelection(cleaned);
-          new Notice("Codian edit applied.");
+          new Notice("Edit applied.");
         } catch (error) {
-          new Notice(`Codian inline edit failed: ${formatError(error)}`);
+          new Notice(`Inline edit failed: ${formatError(error)}`);
         }
       }
     });
@@ -264,8 +264,8 @@ export default class CodianPlugin extends Plugin {
     this.addSettingTab(new CodianSettingTab(this.app, this));
   }
 
-  async onunload(): Promise<void> {
-    await this.flushCodianData();
+  onunload(): void {
+    void this.flushCodianData();
   }
 
   async activateView(): Promise<void> {
@@ -278,7 +278,7 @@ export default class CodianPlugin extends Plugin {
       leaf = nextLeaf;
     }
 
-    workspace.revealLeaf(leaf);
+    await workspace.revealLeaf(leaf);
   }
 
   getView(): CodianView | null {
@@ -600,6 +600,7 @@ class CodianView extends ItemView {
     this.scope?.register(["Mod"], "Enter", (event) => this.handleScopedSubmitHotkey(event));
     this.scope?.register(["Ctrl"], "Enter", (event) => this.handleScopedSubmitHotkey(event));
     this.render();
+    await Promise.resolve();
   }
 
   async onClose(): Promise<void> {
@@ -619,10 +620,10 @@ class CodianView extends ItemView {
     setIcon(brandIcon, CODIAN_ICON_ID);
     const brandText = brand.createDiv({ cls: "codian-brand-text" });
     brandText.createDiv({ cls: "codian-brand-name", text: "Codian" });
-    brandText.createDiv({ cls: "codian-brand-subtitle", text: "Codex in your vault" });
+    brandText.createDiv({ cls: "codian-brand-subtitle", text: "Assistant in your vault" });
 
     const pills = toolbar.createDiv({ cls: "codian-toolbar-pills" });
-    this.createPill(pills, "CLI", this.plugin.resolveCodexCliPath() ? "ready" : "missing", this.plugin.resolveCodexCliPath() ? "is-ok" : "is-error");
+    this.createPill(pills, "Command", this.plugin.resolveCodexCliPath() ? "ready" : "missing", this.plugin.resolveCodexCliPath() ? "is-ok" : "is-error");
     this.createPill(pills, "Mode", this.plugin.data.settings.sandboxMode, "is-muted");
     this.createPill(pills, "Thread", activeConversation.threadId ? shortId(activeConversation.threadId) : "new", "is-muted");
 
@@ -723,7 +724,7 @@ class CodianView extends ItemView {
     this.stopButtonEl = controls.createEl("button", {
       cls: "codian-stop-button",
       text: "Stop",
-      attr: { title: "Stop Codex" }
+      attr: { title: "Stop assistant" }
     });
     setIcon(this.stopButtonEl.createSpan({ cls: "codian-run-icon" }), "square");
     this.stopButtonEl.onclick = () => this.stopCurrentRun();
@@ -996,7 +997,6 @@ class CodianView extends ItemView {
     const beforeCursor = this.inputEl.value.slice(0, cursor);
     const match = beforeCursor.match(/(^|[\s([{])@([^\s@]*)$/);
     if (!match) return null;
-    const prefix = match[1] ?? "";
     const query = match[2] ?? "";
     const start = beforeCursor.length - query.length - 1;
     return {
@@ -1198,28 +1198,32 @@ class CodianView extends ItemView {
       this.finishWithError(formatError(error), conversation);
     });
 
-    run.child.on("close", async (code, signal) => {
-      if (run.pendingLine.trim()) {
-        this.consumeJsonLine(run, run.pendingLine);
-        run.pendingLine = "";
-      }
-
-      this.runs.delete(run.conversationId);
-      this.renderCompletedAssistantMessage(run);
-      if (run.stopped || signal) {
-        if (this.isActiveConversation(run.conversationId)) this.setStatus("Stopped");
-      } else if (code === 0) {
-        this.flushSuccessfulStderr(run);
-        if (this.isActiveConversation(run.conversationId)) this.setStatus(this.buildReadyStatus());
-      } else {
-        this.flushFailedStderr(run);
-        this.addMessage("error", `Codex exited with code ${code ?? "unknown"}.`, conversation);
-        if (this.isActiveConversation(run.conversationId)) this.setStatus(`Codex exited with code ${code ?? "unknown"}`, true);
-      }
-
-      this.refreshActiveRunUi();
-      await this.plugin.saveCodianData();
+    run.child.on("close", (code, signal) => {
+      void this.handleRunClose(run, conversation, code, signal);
     });
+  }
+
+  private async handleRunClose(run: CodianRunState, conversation: CodianConversation, code: number | null, signal: NodeJS.Signals | null): Promise<void> {
+    if (run.pendingLine.trim()) {
+      this.consumeJsonLine(run, run.pendingLine);
+      run.pendingLine = "";
+    }
+
+    this.runs.delete(run.conversationId);
+    this.renderCompletedAssistantMessage(run);
+    if (run.stopped || signal) {
+      if (this.isActiveConversation(run.conversationId)) this.setStatus("Stopped");
+    } else if (code === 0) {
+      this.flushSuccessfulStderr(run);
+      if (this.isActiveConversation(run.conversationId)) this.setStatus(this.buildReadyStatus());
+    } else {
+      this.flushFailedStderr(run);
+      this.addMessage("error", `Codex exited with code ${code ?? "unknown"}.`, conversation);
+      if (this.isActiveConversation(run.conversationId)) this.setStatus(`Codex exited with code ${code ?? "unknown"}`, true);
+    }
+
+    this.refreshActiveRunUi();
+    await this.plugin.saveCodianData();
   }
 
   private bindInternalMarkdownLinks(container: HTMLElement): void {
@@ -1659,11 +1663,13 @@ class CodianSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Codian settings" });
+    new Setting(containerEl)
+      .setName("Codian settings")
+      .setHeading();
 
     const resolved = this.plugin.resolveCodexCliPath();
     new Setting(containerEl)
-      .setName("Detected Codex CLI")
+      .setName("Detected command")
       .setDesc(resolved ?? "Not found")
       .addButton((button) => {
         button
@@ -1672,8 +1678,8 @@ class CodianSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName("Codex CLI path")
-      .setDesc("Leave empty to auto-detect. Use the output of `which codex` if Obsidian cannot find it.")
+      .setName("Command path")
+      .setDesc("Leave empty to auto-detect. Use the output of `which codex` if the app cannot find it.")
       .addText((text) => {
         text
           .setPlaceholder("/usr/local/bin/codex")
@@ -1687,7 +1693,7 @@ class CodianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Model")
-      .setDesc("Optional Codex model override. Leave empty to use your Codex config.")
+      .setDesc("Optional model override. Leave empty to use your command-line config.")
       .addDropdown((dropdown) => {
         for (const option of MODEL_OPTIONS) {
           dropdown.addOption(option.value, option.label);
@@ -1707,7 +1713,7 @@ class CodianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Reasoning effort")
-      .setDesc("Optional Codex reasoning effort override. Plan mode uses Codex's plan-mode effort key.")
+      .setDesc("Optional reasoning effort override. Plan mode uses the plan-mode effort key.")
       .addDropdown((dropdown) => {
         for (const option of EFFORT_OPTIONS) {
           dropdown.addOption(option.value, option.label);
@@ -1723,7 +1729,7 @@ class CodianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Sandbox mode")
-      .setDesc("Controls what Codex can write while running in this vault.")
+      .setDesc("Controls what the assistant can write while running in this vault.")
       .addDropdown((dropdown) => {
         dropdown
           .addOptions({
@@ -1783,7 +1789,7 @@ class CodianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Auto-scroll")
-      .setDesc("Scroll to the bottom while Codex streams output.")
+      .setDesc("Scroll to the bottom while the assistant streams output.")
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.data.settings.autoScroll)
@@ -1795,7 +1801,7 @@ class CodianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Include current note context")
-      .setDesc("Attach the active note path and content to each Codian chat prompt.")
+      .setDesc("Attach the active note path and content to each chat prompt.")
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.data.settings.includeCurrentNoteContext)
@@ -1808,7 +1814,7 @@ class CodianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Include selected text context")
-      .setDesc("Attach selected editor text to each Codian chat prompt when text is selected.")
+      .setDesc("Attach selected editor text to each chat prompt when text is selected.")
       .addToggle((toggle) => {
         toggle
           .setValue(this.plugin.data.settings.includeSelectedTextContext)
@@ -1820,7 +1826,7 @@ class CodianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Maximum saved chats")
-      .setDesc("How many Codian chat tabs to keep in plugin data.")
+      .setDesc("How many chat tabs to keep in plugin data.")
       .addSlider((slider) => {
         slider
           .setLimits(3, 20, 1)
@@ -1834,7 +1840,7 @@ class CodianSettingTab extends PluginSettingTab {
       });
 
     new Setting(containerEl)
-      .setName("Extra Codex args")
+      .setName("Extra arguments")
       .setDesc("Advanced. Added before the prompt marker. Example: `--search`.")
       .addText((text) => {
         text
@@ -1848,7 +1854,7 @@ class CodianSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("Environment variables")
-      .setDesc("One KEY=VALUE per line. Use this for CODEX_HOME, OPENAI_BASE_URL, or PATH if needed.")
+      .setDesc("One key=value per line. Use this for custom home, base URL, or path settings if needed.")
       .addTextArea((text) => {
         text
           .setPlaceholder("CODEX_HOME=/Users/me/.codex\nPATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
@@ -1862,7 +1868,7 @@ class CodianSettingTab extends PluginSettingTab {
       });
 
     const warning = containerEl.createDiv({ cls: "codian-setting-warning" });
-    warning.setText("Codex can read prompts and tool output, and with workspace-write it can edit files in the vault. Review sandbox and approval settings before using it on sensitive vaults.");
+    warning.setText("The assistant can read prompts and tool output, and with workspace-write it can edit files in the vault. Review sandbox and approval settings before using it on sensitive vaults.");
   }
 }
 
@@ -1881,7 +1887,7 @@ class InlineEditPromptModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("codian-inline-modal");
-    contentEl.createEl("h2", { text: "Codian inline edit" });
+    contentEl.createEl("h2", { text: "Inline edit" });
     contentEl.createEl("p", {
       text: "Describe how Codex should rewrite the selected text."
     });
@@ -1945,12 +1951,12 @@ class ContextFileSuggestModal extends FuzzySuggestModal<TFile> {
     super(app);
     this.plugin = plugin;
     this.onDone = onDone;
-    this.setPlaceholder("Attach a note or file as Codian context...");
+    this.setPlaceholder("Attach a note or file as context...");
   }
 
   getItems(): TFile[] {
     return this.app.vault.getFiles().filter((file) => {
-      if (file.path.startsWith(".obsidian/")) return false;
+      if (file.path.startsWith(`${this.app.vault.configDir}/`)) return false;
       return isAttachableContextFile(file);
     });
   }
@@ -1959,7 +1965,11 @@ class ContextFileSuggestModal extends FuzzySuggestModal<TFile> {
     return file.path;
   }
 
-  async onChooseItem(file: TFile): Promise<void> {
+  onChooseItem(file: TFile): void {
+    void this.chooseItem(file);
+  }
+
+  private async chooseItem(file: TFile): Promise<void> {
     const conversation = this.plugin.getActiveConversation();
     this.plugin.addContextPath(conversation, file.path);
     await this.plugin.saveCodianData();
@@ -1986,7 +1996,7 @@ class ConversationHistoryModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("codian-history-modal");
-    contentEl.createEl("h2", { text: "Codian chat history" });
+    contentEl.createEl("h2", { text: "Chat history" });
 
     const list = contentEl.createDiv({ cls: "codian-history-list" });
     for (const conversation of this.plugin.data.conversations) {
@@ -2192,7 +2202,6 @@ function findCodexCli(): string | null {
 }
 
 function isAttachableContextFile(file: TFile): boolean {
-  if (file.path.startsWith(".obsidian/")) return false;
   return /\.(md|txt|canvas|json|csv|tsv|js|ts|tsx|jsx|css|html|py|toml|yaml|yml)$/i.test(file.path);
 }
 
