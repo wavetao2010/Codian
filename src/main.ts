@@ -1124,7 +1124,7 @@ class CodianView extends ItemView {
 
     const codexPath = this.plugin.resolveCodexCliPath();
     if (!codexPath) {
-      this.addMessage("error", "Codex CLI was not found. Install Codex CLI or set its path in Codian settings.");
+      this.addMessage("error", "Codex CLI was not found. Install Codex CLI or set its path in plugin settings.");
       return;
     }
 
@@ -1664,7 +1664,7 @@ class CodianSettingTab extends PluginSettingTab {
     containerEl.empty();
 
     new Setting(containerEl)
-      .setName("Codian settings")
+      .setName("Codian")
       .setHeading();
 
     const resolved = this.plugin.resolveCodexCliPath();
@@ -1857,7 +1857,7 @@ class CodianSettingTab extends PluginSettingTab {
       .setDesc("One key=value per line. Use this for custom home, base URL, or path settings if needed.")
       .addTextArea((text) => {
         text
-          .setPlaceholder("CODEX_HOME=/Users/me/.codex\nPATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin")
+          .setPlaceholder("custom variables, one per line")
           .setValue(this.plugin.data.settings.environmentVariables)
           .onChange(async (value) => {
             this.plugin.data.settings.environmentVariables = value;
@@ -1889,7 +1889,7 @@ class InlineEditPromptModal extends Modal {
     contentEl.addClass("codian-inline-modal");
     contentEl.createEl("h2", { text: "Inline edit" });
     contentEl.createEl("p", {
-      text: "Describe how Codex should rewrite the selected text."
+      text: "Describe how the assistant should rewrite the selected text."
     });
 
     const input = contentEl.createEl("textarea", {
