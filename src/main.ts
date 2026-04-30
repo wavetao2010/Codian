@@ -1857,7 +1857,7 @@ class CodianSettingTab extends PluginSettingTab {
       .setDesc("One key=value per line. Use this for custom home, base URL, or path settings if needed.")
       .addTextArea((text) => {
         text
-          .setPlaceholder("custom variables, one per line")
+          .setPlaceholder("Custom variables, one per line")
           .setValue(this.plugin.data.settings.environmentVariables)
           .onChange(async (value) => {
             this.plugin.data.settings.environmentVariables = value;
